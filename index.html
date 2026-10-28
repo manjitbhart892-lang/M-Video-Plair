@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>M Video Player</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      background-color: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+    #appContainer {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    #homeScreen {
+      position: absolute;
+      inset: 0;
+      background: #0b0f19;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+    }
+    .top-nav {
+      height: 56px;
+      background: #111827;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid #1f2937;
+    }
+    .app-brand {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #ef4444;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .user-avatar-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: #1e293b;
+      border: 2px solid #ef4444;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .user-avatar-btn img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .scan-bar {
+      padding: 12px 16px;
+      background: #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+    }
+    .scan-btn {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tab-bar {
+      display: flex;
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #94a3b8;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active {
+      color: #ef4444;
+      border-bottom: 2px solid #ef4444;
+    }
+    .media-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .media-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #1e293b;
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .media-card:hover { background: #334155; }
+    .media-icon {
+      font-size: 22px;
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: #0b0f19;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .media-meta { flex: 1; overflow: hidden; }
+    .media-title {
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .media-size { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+    #playerView {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      display: none;
+      z-index: 100;
+      overflow: hidden;
+    }
+    .video-viewport {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #videoWrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform-origin: center center;
+    }
+    video {
+      max-width: 100vw;
+      max-height: 100vh;
+      object-fit: contain;
+    }
+    .touch-split-zone {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      z-index: 5;
+    }
+    .split-left, .split-right {
+      flex: 1;
+      height: 100%;
+    }
+    .player-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 25%, transparent 75%, rgba(0,0,0,0.9) 100%);
+      padding: 14px 20px;
+      z-index: 20;
+      transition: opacity 0.25s ease;
+    }
+    .player-overlay.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .top-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      max-width: 65%;
+    }
+    .back-btn { font-size: 24px; cursor: pointer; }
+    .video-name {
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .top-right {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-size: 20px;
+    }
+    .side-bar-left, .side-bar-right {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      font-size: 22px;
+      z-index: 25;
+    }
+    .side-bar-left { left: 20px; }
+    .side-bar-right { right: 20px; }
+    .bottom-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .time-lbl {
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      min-width: 44px;
+      font-variant-numeric: tabular-nums;
+    }
+    .timeline {
+      flex: 1;
+      height: 4px;
+      accent-color: #ef4444;
+      cursor: pointer;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ctrl-group-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 24px;
+    }
+    .ctrl-group-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 18px;
+    }
+    .pill-btn {
+      font-size: 0.8rem;
+      background: rgba(255,255,255,0.15);
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .hud-box {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      padding: 16px 24px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      z-index: 150;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .hud-box.show { opacity: 1; }
+    .side-drawer {
+      position: absolute;
+      top: 0;
+      right: -340px;
+      width: 320px;
+      height: 100%;
+      background: #0f172a;
+      z-index: 200;
+      transition: right 0.3s ease;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      border-left: 1px solid #334155;
+      overflow-y: auto;
+    }
+    .side-drawer.open { right: 0; }
+    .profile-card {
+      background: #1e293b;
+      padding: 14px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 10px;
+      border: 1px solid #334155;
+    }
+    .profile-img-wrap {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: #0b0f19;
+      border: 2px dashed #ef4444;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .profile-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .drawer-item { display: flex; flex-direction: column; gap: 6px; }
+    .drawer-item label { font-size: 0.85rem; color: #94a3b8; }
+    .eq-slider { width: 100%; accent-color: #ef4444; }
+  </style>
+</head>
+<body>
+
+  <div id="appContainer">
+
+    <div id="homeScreen">
+      <div class="top-nav">
+        <div class="app-brand">🎬 M Video Player</div>
+        <div class="user-avatar-btn" id="openDrawerFromNav">
+          <img id="navAvatarImg" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23ef4444'/><text x='50' y='65' font-size='45' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>M</text></svg>" alt="M">
+        </div>
+      </div>
+
+      <div class="scan-bar">
+        <div>
+          <div style="font-size: 0.9rem; font-weight: 600;">वीडियो व ऑडियो लोड करें</div>
+          <div style="font-size: 0.75rem; color: #94a3b8;">गैलरी या स्टोरेज से सभी फाइल्स चुनें</div>
+        </div>
+        <button class="scan-btn" onclick="document.getElementById('multiMediaInput').click()">फाइलें चुनें</button>
+      </div>
+
+      <input type="file" id="multiMediaInput" multiple accept="video/*,audio/*" style="display: none;">
+
+      <div class="tab-bar">
+        <div class="tab-btn active" id="tabVideos">वीडियो (<span id="vidCount">0</span>)</div>
+        <div class="tab-btn" id="tabAudios">ऑडियो (<span id="audCount">0</span>)</div>
+      </div>
+
+      <div class="media-list" id="mediaList">
+        <div style="text-align: center; color: #64748b; margin-top: 40px; font-size: 0.9rem;">
+          'फाइलें चुनें' पर टैप करके अपने वीडियो या गाने लोड करें।
+        </div>
+      </div>
+    </div>
+    <div id="playerView">
+      <div class="video-viewport" id="viewport">
+        <div id="videoWrapper">
+          <video id="mainVideo" playsinline></video>
+        </div>
+      </div>
+
+      <div class="touch-split-zone">
+        <div class="split-left" id="zoneLeft"></div>
+        <div class="split-right" id="zoneRight"></div>
+      </div>
+
+      <div class="hud-box" id="hudBox">
+        <div id="hudIcon" style="font-size: 30px;">🔍</div>
+        <div id="hudText" style="font-size: 0.9rem; font-weight: 600;">ज़ूम: 100%</div>
+      </div>
+
+      <div class="player-overlay" id="playerOverlay">
+        
+        <div class="top-bar">
+          <div class="top-left">
+            <span class="back-btn" id="closePlayerBtn">←</span>
+            <span class="video-name" id="playerVideoTitle">M Video Player</span>
+          </div>
+          <div class="top-right">
+            <span style="font-size: 13px; border: 1px solid #fff; padding: 1px 4px; border-radius: 4px;">CC</span>
+            <span id="openEqBtn" style="cursor: pointer;">🎧</span>
+            <span id="openDrawerBtn" style="cursor: pointer;">⋮</span>
+          </div>
+        </div>
+
+        <div class="side-bar-left">
+          <span id="muteBtn" style="cursor: pointer;">🔊</span>
+          <span id="lockBtn" style="cursor: pointer;">🔓</span>
+        </div>
+
+        <div class="side-bar-right">
+          <span id="zoomResetBtn" style="cursor: pointer;">🔍</span>
+          <span id="aspectBtn" style="cursor: pointer;">↔</span>
+        </div>
+
+        <div class="bottom-bar">
+          <div class="progress-row">
+            <span class="time-lbl" id="timeCurrent">00:00</span>
+            <input type="range" class="timeline" id="videoProgress" value="0" min="0" step="0.1">
+            <span class="time-lbl" id="timeDuration">00:00</span>
+          </div>
+
+          <div class="control-row">
+            <div class="ctrl-group-left">
+              <span id="btnPrev" style="cursor: pointer;">⏮</span>
+              <span id="btnPlayPause" style="cursor: pointer; font-size: 28px;">❚❚</span>
+              <span id="btnNext" style="cursor: pointer;">⏭</span>
+            </div>
+
+            <div class="ctrl-group-right">
+              <span class="pill-btn" id="btnRatio">16:9</span>
+              <span class="pill-btn" id="btnSpeed">1.0x</span>
+              <span id="btnPip" style="cursor: pointer; font-size: 22px;">⧉</span>
+              <span id="btnFullscreen" style="cursor: pointer; font-size: 22px;">⛶</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="side-drawer" id="sideDrawer">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 1.1rem; font-weight: 700; color: #ef4444;">प्रोफ़ाइल व सेटिंग्स</span>
+        <span id="closeDrawer" style="cursor: pointer; font-size: 20px;">✕</span>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-img-wrap" onclick="document.getElementById('profilePhotoInput').click()">
+          <img id="drawerAvatarImg" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23ef4444'/><text x='50' y='65' font-size='45' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>M</text></svg>" alt="Profile">
+        </div>
+        <input type="file" id="profilePhotoInput" accept="image/*" style="display: none;">
+        <span style="font-size: 0.75rem; color: #ef4444;">(फोटो बदलने के लिए टैप करें)</span>
+
+        <div style="font-size: 1rem; font-weight: 700;">मंजीत भारती</div>
+        <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.4;">
+          <div>📱 संपर्क: +91 9682970623</div>
+          <div style="margin-top: 4px; color: #ef4444;">M Video Player Pro</div>
+        </div>
+      </div>
+
+      <div class="drawer-item">
+        <label>इक्वलाइज़र: बास (Bass)</label>
+        <input type="range" class="eq-slider" min="0" max="20" value="0" id="bassRange">
+      </div>
+
+      <div class="drawer-item">
+        <label>इक्वलाइज़र: ट्रेबल (Treble)</label>
+        <input type="range" class="eq-slider" min="0" max="20" value="0" id="trebleRange">
+      </div>
+
+      <div style="background: #1e293b; padding: 12px; border-radius: 8px; font-size: 0.8rem; color: #94a3b8; line-height: 1.5;">
+        💡 <b>ज़ूम करें:</b> वीडियो स्क्रीन पर दो उंगलियों से पिंच करके (खींचकर) जितना चाहें उतना ज़ूम करें। '🔍' से रीसेट करें।
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let playlist = [];
+    let currentIndex = 0;
+    let isLocked = false;
+    let hideTimer = null;
+    const speeds = [0.5, 1.0, 1.25, 1.5, 2.0];
+    let speedIndex = 1;
+
+    const ratios = [
+      { name: '16:9', fit: 'contain' },
+      { name: '4:3', fit: 'contain' },
+      { name: '21:9', fit: 'contain' },
+      { name: 'Fill', fit: 'fill' },
+      { name: 'Stretch', fit: 'cover' },
+      { name: 'Fit', fit: 'contain' }
+    ];
+    let ratioIndex = 0;
+    let scale = 1;
+    let initialDist = 0;
+    let initialScale = 1;
+
+    const video = document.getElementById('mainVideo');
+    const videoWrapper = document.getElementById('videoWrapper');
+    const mediaInput = document.getElementById('multiMediaInput');
+    const mediaList = document.getElementById('mediaList');
+    const homeScreen = document.getElementById('homeScreen');
+    const playerView = document.getElementById('playerView');
+    const playerOverlay = document.getElementById('playerOverlay');
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const videoProgress = document.getElementById('videoProgress');
+    const timeCurrent = document.getElementById('timeCurrent');
+    const timeDuration = document.getElementById('timeDuration');
+    const playerVideoTitle = document.getElementById('playerVideoTitle');
+    const btnSpeed = document.getElementById('btnSpeed');
+    const btnRatio = document.getElementById('btnRatio');
+    const muteBtn = document.getElementById('muteBtn');
+    const lockBtn = document.getElementById('lockBtn');
+    const hudBox = document.getElementById('hudBox');
+    const hudText = document.getElementById('hudText');
+    const hudIcon = document.getElementById('hudIcon');
+    const sideDrawer = document.getElementById('sideDrawer');
+    const profileInput = document.getElementById('profilePhotoInput');
+    const navAvatarImg = document.getElementById('navAvatarImg');
+    const drawerAvatarImg = document.getElementById('drawerAvatarImg');
+
+    const savedPhoto = localStorage.getItem('mb_player_user_photo');
+    if (savedPhoto) {
+      navAvatarImg.src = savedPhoto;
+      drawerAvatarImg.src = savedPhoto;
+    }
+    profileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const imgData = evt.target.result;
+          navAvatarImg.src = imgData;
+          drawerAvatarImg.src = imgData;
+          localStorage.setItem('mb_player_user_photo', imgData);
+          showHud('👤', 'प्रोफ़ाइल फोटो अपडेट हुई');
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    let audioCtx, sourceNode, bassFilter, trebleFilter;
+    function initAudioEffects() {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          sourceNode = audioCtx.createMediaElementSource(video);
+          bassFilter = audioCtx.createBiquadFilter();
+          bassFilter.type = 'lowshelf';
+          bassFilter.frequency.value = 200;
+
+          trebleFilter = audioCtx.createBiquadFilter();
+          trebleFilter.type = 'highshelf';
+          trebleFilter.frequency.value = 3000;
+
+          sourceNode.connect(bassFilter);
+          bassFilter.connect(trebleFilter);
+          trebleFilter.connect(audioCtx.destination);
+        }
+      } catch(e) {}
+    }
+
+    mediaInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      if (!files.length) return;
+      playlist = files;
+      const vids = playlist.filter(f => f.type.startsWith('video/')).length;
+      document.getElementById('vidCount').textContent = vids;
+      document.getElementById('audCount').textContent = playlist.length - vids;
+      renderPlaylist();
+    });
+
+    function renderPlaylist() {
+      mediaList.innerHTML = '';
+      playlist.forEach((f, idx) => {
+        const item = document.createElement('div');
+        item.className = 'media-card';
+        const isAudio = f.type.startsWith('audio/');
+        item.innerHTML = `
+          <div class="media-icon">${isAudio ? '🎵' : '🎬'}</div>
+          <div class="media-meta">
+            <div class="media-title">${f.name}</div>
+            <div class="media-size">${(f.size / (1024*1024)).toFixed(1)} MB</div>
+          </div>
+        `;
+        item.onclick = () => playMedia(idx);
+        mediaList.appendChild(item);
+      });
+    }
+
+    function playMedia(index) {
+      if (index < 0 || index >= playlist.length) return;
+      currentIndex = index;
+      const file = playlist[currentIndex];
+      video.src = URL.createObjectURL(file);
+      playerVideoTitle.textContent = file.name;
+      homeScreen.style.display = 'none';
+      playerView.style.display = 'block';
+
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock('landscape').catch(() => {});
+        }
+      } catch(e) {}
+
+      scale = 1;
+      updateZoom();
+      applyRatio(ratioIndex);
+
+      video.play().then(() => {
+        btnPlayPause.textContent = '❚❚';
+        initAudioEffects();
+      }).catch(() => {});
+      resetOverlayTimer();
+    }
+
+    video.addEventListener('ended', () => {
+      if (currentIndex < playlist.length - 1) playMedia(currentIndex + 1);
+    });
+
+    btnNext.onclick = () => {
+      if (currentIndex < playlist.length - 1) playMedia(currentIndex + 1);
+    };
+    btnPrev.onclick = () => {
+      if (currentIndex > 0) playMedia(currentIndex - 1);
+    };
+    function togglePlay() {
+      if (isLocked) return;
+      if (video.paused) {
+        video.play();
+        btnPlayPause.textContent = '❚❚';
+      } else {
+        video.pause();
+        btnPlayPause.textContent = '▶';
+      }
+      resetOverlayTimer();
+    }
+    btnPlayPause.onclick = togglePlay;
+
+    let isSeeking = false;
+    video.addEventListener('timeupdate', () => {
+      if (!isSeeking && video.duration) {
+        videoProgress.value = (video.currentTime / video.duration) * 100 || 0;
+        timeCurrent.textContent = formatTime(video.currentTime);
+        timeDuration.textContent = formatTime(video.duration || 0);
+      }
+    });
+    videoProgress.addEventListener('input', () => {
+      isSeeking = true;
+      if (video.duration) {
+        timeCurrent.textContent = formatTime((videoProgress.value / 100) * video.duration);
+      }
+    });
+    videoProgress.addEventListener('change', () => {
+      if (video.duration) {
+        video.currentTime = (videoProgress.value / 100) * video.duration;
+      }
+      isSeeking = false;
+      resetOverlayTimer();
+    });
+
+    function applyRatio(idx) {
+      const r = ratios[idx];
+      video.style.objectFit = r.fit;
+      btnRatio.textContent = r.name;
+      showHud('↔', `रेशियो: ${r.name}`);
+    }
+    btnRatio.onclick = () => {
+      ratioIndex = (ratioIndex + 1) % ratios.length;
+      applyRatio(ratioIndex);
+    };
+
+    const viewport = document.getElementById('viewport');
+    function getDistance(touches) {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    viewport.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        initialDist = getDistance(e.touches);
+        initialScale = scale;
+      }
+    });
+
+    viewport.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const currentDist = getDistance(e.touches);
+        const diff = currentDist / initialDist;
+        scale = Math.min(3.5, Math.max(0.7, initialScale * diff));
+        updateZoom();
+        showHud('🔍', `ज़ूम: ${Math.round(scale * 100)}%`);
+      }
+    });
+
+    function updateZoom() {
+      videoWrapper.style.transform = `scale(${scale})`;
+    }
+
+    document.getElementById('zoomResetBtn').onclick = () => {
+      scale = 1;
+      updateZoom();
+      showHud('🔍', 'ज़ूम रीसेट (100%)');
+    };
+    btnSpeed.onclick = () => {
+      speedIndex = (speedIndex + 1) % speeds.length;
+      video.playbackRate = speeds[speedIndex];
+      btnSpeed.textContent = speeds[speedIndex] + 'x';
+      showHud('⚡', `स्पीड: ${speeds[speedIndex]}x`);
+      resetOverlayTimer();
+    };
+
+    document.getElementById('btnPip').onclick = async () => {
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else {
+          await video.requestPictureInPicture();
+        }
+      } catch (err) {
+        alert('पिक्चर-इन-पिक्चर समर्थित नहीं है।');
+      }
+    };
+
+    muteBtn.onclick = () => {
+      video.muted = !video.muted;
+      muteBtn.textContent = video.muted ? '🔇' : '🔊';
+      showHud(video.muted ? '🔇' : '🔊', video.muted ? 'म्यूट' : 'आवाज चालू');
+    };
+
+    lockBtn.onclick = () => {
+      isLocked = !isLocked;
+      lockBtn.textContent = isLocked ? '🔒' : '🔓';
+      if (isLocked) {
+        playerOverlay.style.background = 'none';
+        document.querySelectorAll('.top-bar, .side-bar-right, .bottom-bar, #muteBtn').forEach(el => el.style.visibility = 'hidden');
+        showHud('🔒', 'स्क्रीन लॉक है');
+      } else {
+        playerOverlay.style.background = '';
+        document.querySelectorAll('.top-bar, .side-bar-right, .bottom-bar, #muteBtn').forEach(el => el.style.visibility = 'visible');
+        showHud('🔓', 'स्क्रीन अनलॉक हुई');
+      }
+    };
+
+    let startY = 0;
+    const rightZone = document.getElementById('zoneRight');
+    rightZone.addEventListener('touchstart', (e) => { if (e.touches.length === 1) startY = e.touches[0].clientY; });
+    rightZone.addEventListener('touchmove', (e) => {
+      if (isLocked || e.touches.length > 1) return;
+      const deltaY = startY - e.touches[0].clientY;
+      startY = e.touches[0].clientY;
+      let newVol = Math.min(1, Math.max(0, video.volume + (deltaY / 220)));
+      video.volume = newVol;
+      showHud('🔊', `वॉल्यूम: ${Math.round(newVol * 100)}\%`); });  const leftZone = document.getElementById('zoneLeft'); let brightnessVal = 1; leftZone.addEventListener('touchstart', (e) => { if (e.touches.length === 1) startY = e.touches[0].clientY; }); leftZone.addEventListener('touchmove', (e) => { if (isLocked \vert{}\vert{} e.touches.length > 1) return; const deltaY = startY - e.touches[0].clientY; startY = e.touches[0].clientY; brightnessVal = Math.min(1.6, Math.max(0.3, brightnessVal + (deltaY / 220))); video.style.filter = `brightness(${brightnessVal
+    const leftZone = document.getElementById('zoneLeft');
+    let brightnessVal = 1;
+    leftZone.addEventListener('touchstart', (e) => { if (e.touches.length === 1) startY = e.touches[0].clientY; });
+    leftZone.addEventListener('touchmove', (e) => {
+      if (isLocked || e.touches.length > 1) return;
+      const deltaY = startY - e.touches[0].clientY;
+      startY = e.touches[0].clientY;
+      brightnessVal = Math.min(1.6, Math.max(0.3, brightnessVal + (deltaY / 220)));
+      video.style.filter = `brightness(${brightnessVal})`;
+      showHud('☀️', `ब्राइटनेस: ${Math.round((brightnessVal / 1.6) * 100)}%`);
+    });
+
+    function showHud(icon, text) {
+      hudIcon.textContent = icon;
+      hudText.textContent = text;
+      hudBox.classList.add('show');
+      clearTimeout(window.hudTimer);
+      window.hudTimer = setTimeout(() => hudBox.classList.remove('show'), 1200);
+    }
+
+    function resetOverlayTimer() {
+      if (isLocked) return;
+      playerOverlay.classList.remove('hide');
+      clearTimeout(hideTimer);
+      if (!video.paused) {
+        hideTimer = setTimeout(() => playerOverlay.classList.add('hide'), 3500);
+      }
+    }
+
+    playerView.onclick = (e) => {
+      if (e.target === leftZone || e.target === rightZone || e.target === video) {
+        if (playerOverlay.classList.contains('hide')) {
+          playerOverlay.classList.remove('hide');
+          resetOverlayTimer();
+        } else {
+          playerOverlay.classList.add('hide');
+        }
+      }
+    };
+
+    document.getElementById('closePlayerBtn').onclick = () => {
+      video.pause();
+      playerView.style.display = 'none';
+      homeScreen.style.display = 'flex';
+      try {
+        if (screen.orientation && screen.orientation.unlock) {
+          screen.orientation.unlock();
+        }
+      } catch(e) {}
+    };
+
+    document.getElementById('bassRange').oninput = (e) => {
+      if (bassFilter) bassFilter.gain.value = parseFloat(e.target.value);
+    };
+    document.getElementById('trebleRange').oninput = (e) => {
+      if (trebleFilter) trebleFilter.gain.value = parseFloat(e.target.value);
+    };
+
+    const toggleDrawer = () => sideDrawer.classList.toggle('open');
+    document.getElementById('openDrawerBtn').onclick = toggleDrawer;
+    document.getElementById('openDrawerFromNav').onclick = toggleDrawer;
+    document.getElementById('openEqBtn').onclick = toggleDrawer;
+    document.getElementById('closeDrawer').onclick = toggleDrawer;
+
+    function formatTime(sec) {
+      if (isNaN(sec)) return '00:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+  </script>
+</body>
+</html>
